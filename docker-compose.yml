@@ -1,0 +1,22 @@
+version: '3.3'
+services:
+### MySQL ################################################
+  mysql:
+    build:
+      context: ./mysql
+      args:
+        - MYSQL_VERSION=5.7
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - ${DATA_PATH_HOST}/mysql:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+### Redis ################################################
+  redis:
+    build: ./redis
+    volumes:
+      - ${DATA_PATH_HOST}/redis:/data
+    ports:
+      - "6379:6379"

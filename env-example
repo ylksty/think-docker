@@ -1,2 +1,3 @@
 # Choose storage path on your machine. For all storage systems
+CONFIGS_PATH_HOST=./configs
 DATA_PATH_HOST=~/.laradock/data

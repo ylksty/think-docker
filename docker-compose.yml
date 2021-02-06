@@ -13,8 +13,6 @@ services:
       - ${DATA_PATH_HOST}/mysql:/var/lib/mysql
     ports:
       - "3306:3306"
-    networks:
-      - elastic
 
 ### Nacos ################################################
   nacos:
@@ -37,8 +35,6 @@ services:
     depends_on:
       - mysql
     restart: on-failure
-    networks:
-      - elastic
 
 ### Redis ################################################
   redis:
@@ -104,6 +100,4 @@ services:
 
 networks:
   elastic:
-    driver: bridge
-  nacos:
     driver: bridge

@@ -22,3 +22,4 @@ docker-compose.custom.yml
 .DS_Store
 
 /configs
+/mycat/install

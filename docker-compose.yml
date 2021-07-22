@@ -5,7 +5,7 @@ services:
     build:
       context: ./mysql
       args:
-        - MYSQL_VERSION=5.7
+        - MYSQL_VERSION=${MYSQL_VERSION}
     environment:
       - TZ=Asia/Shanghai
       - MYSQL_ROOT_PASSWORD=root
@@ -22,7 +22,7 @@ services:
       - MODE=standalone
       - SPRING_DATASOURCE_PLATFORM=mysql
       - MYSQL_SERVICE_HOST=mysql
-      - MYSQL_SERVICE_DB_NAME=nacos_devtest
+      - MYSQL_SERVICE_DB_NAME=ry-config
       - MYSQL_SERVICE_PORT=3306
       - MYSQL_SERVICE_USER=root
       - MYSQL_SERVICE_PASSWORD=root
@@ -105,11 +105,142 @@ services:
     volumes:
       - ${DATA_PATH_HOST}/rabbit/data:/var/lib/rabbitmq
 
+### jenkins #########################################
+  jenkins:
+    build:
+      context: ./jenkins
+      args:
+        - JENKINS_VERSION=2.286
+    environment:
+      - JAVA_OPTS=-Duser.timezone=Asia/Shanghai
+    volumes:
+      - ${DATA_PATH_HOST}/jenkins_home:/var/jenkins_home
+      - /Applications/IntelliJ IDEA.app/Contents/plugins/maven/lib/maven3:/usr/local/maven
+    ports:
+      - 8180:8080
 
+### zookeeper #########################################
+  zookeeper:
+    image: zookeeper:3.5.7
+    restart: always
+    container_name: zookeeper
+    volumes:
+      - ${DATA_PATH_HOST}/zookeeper:/data
+      - ./zookeeper/conf:/conf
+    ports:
+      - "2181:2181"
+    environment:
+      ZOO_MY_ID: 1
+    networks:
+      mysql:
+        ipv4_address: 172.18.0.254
 
-
+### mycat #########################################
+### https://github.com/liuwel/docker-mycat
+### mysql -uroot -proot -P8066 -h172.18.0.5
+  mycat:
+    build: ./mycat
+    container_name: mycat
+    volumes:
+      - ./mycat/conf/:/mycat/conf/:ro
+      - ${DATA_PATH_HOST}/mycat-logs/:/mycat/logs/:rw
+      - ./mycat/hosts:/etc/hosts:ro
+      - ./mycat/web/mycat.properties:/mycat-web/mycat-web/WEB-INF/classes/mycat.properties
+    ports:
+      - "8066:8066"
+      - "9066:9066"
+      - "8082:8082"
+    links:
+      - m1
+      - s1
+      - s2
+    networks:
+      mysql:
+        ipv4_address: 172.18.0.5
+    ulimits:
+      nproc: 65535
+    hostname: mycat
+    mem_limit: 512m
+    restart: always
+  m1:
+    image: mysql:${MYSQL_VERSION}
+    container_name: m1
+    volumes:
+      - ./mycat/mysql-m1/docker.cnf:/etc/mysql/conf.d/docker.cnf:ro
+      #- /etc/localtime:/etc/localtime:ro
+      - ./mycat/hosts:/etc/hosts:ro
+    ports:
+      - "3309:3306"
+    networks:
+      mysql:
+        ipv4_address: 172.18.0.2
+    ulimits:
+      nproc: 65535
+    hostname: m1
+    mem_limit: 512m
+    restart: always
+    command:
+      - '--default-authentication-plugin=mysql_native_password'
+      - '--character-set-server=utf8mb4'
+    environment:
+      MYSQL_ROOT_PASSWORD: m1test
+  s1:
+    image: mysql:${MYSQL_VERSION}
+    container_name: s1
+    volumes:
+      - ./mycat/mysql-s1/docker.cnf:/etc/mysql/conf.d/docker.cnf:ro
+      # - /etc/localtime:/etc/localtime:ro
+      - ./mycat/hosts:/etc/hosts:ro
+    ports:
+      - "3307:3306"
+    networks:
+      mysql:
+        ipv4_address: 172.18.0.3
+    links:
+      - m1
+    ulimits:
+      nproc: 65535
+    hostname: s1
+    mem_limit: 512m
+    restart: always
+    command:
+      - '--default-authentication-plugin=mysql_native_password'
+      - '--character-set-server=utf8mb4'
+    environment:
+      MYSQL_ROOT_PASSWORD: s1test
+  s2:
+    image: mysql:${MYSQL_VERSION}
+    container_name: s2
+    volumes:
+      - ./mycat/mysql-s2/docker.cnf:/etc/mysql/conf.d/docker.cnf:ro
+      #- /etc/localtime:/etc/localtime:ro
+      - ./mycat/hosts:/etc/hosts:ro
+    ports:
+      - "3308:3306"
+    links:
+      - m1
+    networks:
+      mysql:
+        ipv4_address: 172.18.0.4
+    ulimits:
+      nproc: 65535
+    hostname: s2
+    mem_limit: 512m
+    restart: always
+    command:
+      - '--default-authentication-plugin=mysql_native_password'
+      - '--character-set-server=utf8mb4'
+    environment:
+      MYSQL_ROOT_PASSWORD: s2test
 
 
 networks:
   elastic:
     driver: bridge
+  mysql:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.18.0.0/24
+          gateway: 172.18.0.1
